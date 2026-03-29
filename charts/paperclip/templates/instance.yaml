@@ -1,0 +1,438 @@
+apiVersion: paperclip.inc/v1alpha1
+kind: Instance
+metadata:
+  name: {{ include "paperclip.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "paperclip.labels" . | nindent 4 }}
+spec:
+  # ---------- Image ----------
+  image:
+    repository: {{ .Values.image.repository }}
+    {{- if .Values.image.digest }}
+    digest: {{ .Values.image.digest }}
+    {{- else }}
+    tag: {{ .Values.image.tag | quote }}
+    {{- end }}
+    pullPolicy: {{ .Values.image.pullPolicy }}
+    {{- with .Values.image.pullSecrets }}
+    pullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if .Values.image.autoUpdate.enabled }}
+    autoUpdate:
+      enabled: true
+      interval: {{ .Values.image.autoUpdate.interval | quote }}
+    {{- end }}
+
+  # ---------- Deployment ----------
+  deployment:
+    mode: {{ .Values.deployment.mode }}
+    exposure: {{ .Values.deployment.exposure }}
+    {{- if .Values.deployment.publicURL }}
+    publicURL: {{ .Values.deployment.publicURL | quote }}
+    {{- end }}
+    {{- with .Values.deployment.allowedHostnames }}
+    allowedHostnames:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+
+  # ---------- Database ----------
+  database:
+    mode: {{ .Values.database.mode }}
+    {{- if and (eq .Values.database.mode "external") .Values.database.externalURL }}
+    externalURL: {{ .Values.database.externalURL | quote }}
+    {{- end }}
+    {{- if and (eq .Values.database.mode "external") .Values.database.externalURLSecretRef .Values.database.externalURLSecretRef.name }}
+    externalURLSecretRef:
+      name: {{ .Values.database.externalURLSecretRef.name }}
+      key: {{ .Values.database.externalURLSecretRef.key }}
+    {{- end }}
+    {{- if eq .Values.database.mode "managed" }}
+    managed:
+      image: {{ .Values.database.managed.image }}
+      storageSize: {{ .Values.database.managed.storageSize }}
+      {{- if .Values.database.managed.storageClass }}
+      storageClass: {{ .Values.database.managed.storageClass }}
+      {{- end }}
+      {{- with .Values.database.managed.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+
+  # ---------- Auth ----------
+  {{- if or (ne .Values.deployment.mode "open") .Values.auth.secretRef.name }}
+  auth:
+    {{- if .Values.auth.secretRef.name }}
+    secretRef:
+      name: {{ .Values.auth.secretRef.name }}
+      key: {{ .Values.auth.secretRef.key | default "BETTER_AUTH_SECRET" }}
+    {{- end }}
+    {{- if .Values.auth.adminUser.email }}
+    adminUser:
+      email: {{ .Values.auth.adminUser.email | quote }}
+      name: {{ .Values.auth.adminUser.name | quote }}
+      {{- if .Values.auth.adminUser.passwordSecretRef.name }}
+      passwordSecretRef:
+        name: {{ .Values.auth.adminUser.passwordSecretRef.name }}
+        key: {{ .Values.auth.adminUser.passwordSecretRef.key | default "password" }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.auth.email.from }}
+    email:
+      {{- if .Values.auth.email.resendAPIKeySecretRef.name }}
+      resendAPIKeySecretRef:
+        name: {{ .Values.auth.email.resendAPIKeySecretRef.name }}
+        key: {{ .Values.auth.email.resendAPIKeySecretRef.key | default "RESEND_API_KEY" }}
+      {{- end }}
+      from: {{ .Values.auth.email.from | quote }}
+      verificationRequired: {{ .Values.auth.email.verificationRequired }}
+    {{- end }}
+    {{- if .Values.auth.google.credentialsSecretRef }}
+    google:
+      credentialsSecretRef:
+        name: {{ .Values.auth.google.credentialsSecretRef.name }}
+    {{- end }}
+    {{- if .Values.auth.apple.credentialsSecretRef }}
+    apple:
+      credentialsSecretRef:
+        name: {{ .Values.auth.apple.credentialsSecretRef.name }}
+    {{- end }}
+  {{- end }}
+
+  # ---------- Secrets ----------
+  {{- if or .Values.secrets.masterKeySecretRef.name .Values.secrets.strictMode }}
+  secrets:
+    {{- if .Values.secrets.masterKeySecretRef.name }}
+    masterKeySecretRef:
+      name: {{ .Values.secrets.masterKeySecretRef.name }}
+      key: {{ .Values.secrets.masterKeySecretRef.key | default "MASTER_KEY" }}
+    {{- end }}
+    strictMode: {{ .Values.secrets.strictMode }}
+  {{- end }}
+
+  # ---------- Storage ----------
+  storage:
+    persistence:
+      enabled: {{ .Values.storage.persistence.enabled }}
+      size: {{ .Values.storage.persistence.size }}
+      {{- if .Values.storage.persistence.storageClass }}
+      storageClass: {{ .Values.storage.persistence.storageClass }}
+      {{- end }}
+      {{- with .Values.storage.persistence.accessModes }}
+      accessModes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  # ---------- Object Storage ----------
+  {{- if .Values.objectStorage.enabled }}
+  objectStorage:
+    provider: {{ .Values.objectStorage.provider }}
+    bucket: {{ .Values.objectStorage.bucket | quote }}
+    {{- if .Values.objectStorage.region }}
+    region: {{ .Values.objectStorage.region | quote }}
+    {{- end }}
+    {{- if .Values.objectStorage.endpoint }}
+    endpoint: {{ .Values.objectStorage.endpoint | quote }}
+    {{- end }}
+    {{- if .Values.objectStorage.credentialsSecretRef.name }}
+    credentialsSecretRef:
+      name: {{ .Values.objectStorage.credentialsSecretRef.name }}
+    {{- end }}
+  {{- end }}
+
+  # ---------- Redis ----------
+  {{- if .Values.redis.enabled }}
+  redis:
+    mode: {{ .Values.redis.mode }}
+    {{- if and (eq .Values.redis.mode "external") .Values.redis.externalURL }}
+    externalURL: {{ .Values.redis.externalURL | quote }}
+    {{- end }}
+    {{- if and (eq .Values.redis.mode "external") .Values.redis.externalURLSecretRef.name }}
+    externalURLSecretRef:
+      name: {{ .Values.redis.externalURLSecretRef.name }}
+      key: {{ .Values.redis.externalURLSecretRef.key }}
+    {{- end }}
+    {{- if eq .Values.redis.mode "managed" }}
+    managed:
+      image: {{ .Values.redis.managed.image }}
+      storageSize: {{ .Values.redis.managed.storageSize }}
+      {{- if .Values.redis.managed.storageClass }}
+      storageClass: {{ .Values.redis.managed.storageClass }}
+      {{- end }}
+      {{- with .Values.redis.managed.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  # ---------- Heartbeat ----------
+  heartbeat:
+    enabled: {{ .Values.heartbeat.enabled }}
+    intervalMS: {{ .Values.heartbeat.intervalMS }}
+
+  # ---------- Adapters ----------
+  adapters:
+    {{- if .Values.adapters.apiKeysSecretRef.name }}
+    apiKeysSecretRef:
+      name: {{ .Values.adapters.apiKeysSecretRef.name }}
+    {{- end }}
+    {{- if .Values.adapters.managedInferenceSecretRef.name }}
+    managedInferenceSecretRef:
+      name: {{ .Values.adapters.managedInferenceSecretRef.name }}
+    {{- end }}
+    managedInferenceProvider: {{ .Values.adapters.managedInferenceProvider }}
+    managedInferenceModel: {{ .Values.adapters.managedInferenceModel }}
+    {{- if .Values.adapters.cloudSandbox.enabled }}
+    cloudSandbox:
+      enabled: true
+      defaultImage: {{ .Values.adapters.cloudSandbox.defaultImage }}
+      {{- if .Values.adapters.cloudSandbox.namespace }}
+      namespace: {{ .Values.adapters.cloudSandbox.namespace }}
+      {{- end }}
+      idleTimeoutMin: {{ .Values.adapters.cloudSandbox.idleTimeoutMin }}
+      {{- with .Values.adapters.cloudSandbox.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adapters.cloudSandbox.persistence.enabled }}
+      persistence:
+        enabled: true
+        {{- if .Values.adapters.cloudSandbox.persistence.storageClass }}
+        storageClass: {{ .Values.adapters.cloudSandbox.persistence.storageClass }}
+        {{- end }}
+        size: {{ .Values.adapters.cloudSandbox.persistence.size }}
+      {{- end }}
+      {{- if .Values.adapters.cloudSandbox.multiNamespace }}
+      multiNamespace: true
+      {{- end }}
+      {{- if .Values.adapters.cloudSandbox.inferenceProxy.enabled }}
+      inferenceProxy:
+        enabled: true
+        {{- if .Values.adapters.cloudSandbox.inferenceProxy.image }}
+        image: {{ .Values.adapters.cloudSandbox.inferenceProxy.image }}
+        {{- end }}
+        port: {{ .Values.adapters.cloudSandbox.inferenceProxy.port }}
+      {{- end }}
+      {{- with .Values.adapters.cloudSandbox.resourceTiers }}
+      resourceTiers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+
+  # ---------- Connections ----------
+  {{- if .Values.connections.enabled }}
+  connections:
+    {{- if .Values.connections.credentialsSecretRef.name }}
+    credentialsSecretRef:
+      name: {{ .Values.connections.credentialsSecretRef.name }}
+    {{- end }}
+    credentialsKey: {{ .Values.connections.credentialsKey | quote }}
+    {{- if .Values.connections.providersConfigRef.name }}
+    providersConfigRef:
+      name: {{ .Values.connections.providersConfigRef.name }}
+    {{- end }}
+  {{- end }}
+
+  # ---------- Plugins ----------
+  {{- with .Values.plugins }}
+  plugins:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # ---------- Env ----------
+  {{- with .Values.env }}
+  env:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.envFrom }}
+  envFrom:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # ---------- Resources ----------
+  {{- with .Values.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # ---------- Security ----------
+  security:
+    {{- with .Values.security.podSecurityContext }}
+    podSecurityContext:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.security.containerSecurityContext }}
+    containerSecurityContext:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    networkPolicy:
+      enabled: {{ .Values.security.networkPolicy.enabled }}
+      {{- with .Values.security.networkPolicy.allowIngressCIDRs }}
+      allowIngressCIDRs:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.security.networkPolicy.allowEgressCIDRs }}
+      allowEgressCIDRs:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    rbac:
+      create: {{ .Values.security.rbac.create }}
+      {{- with .Values.security.rbac.serviceAccountAnnotations }}
+      serviceAccountAnnotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  # ---------- Networking ----------
+  networking:
+    service:
+      type: {{ .Values.networking.service.type }}
+      port: {{ .Values.networking.service.port }}
+      {{- with .Values.networking.service.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- if .Values.networking.ingress.enabled }}
+    ingress:
+      enabled: true
+      {{- if .Values.networking.ingress.ingressClassName }}
+      ingressClassName: {{ .Values.networking.ingress.ingressClassName }}
+      {{- end }}
+      {{- with .Values.networking.ingress.hosts }}
+      hosts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.networking.ingress.tls }}
+      tls:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.networking.ingress.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+
+  # ---------- Observability ----------
+  observability:
+    metrics:
+      enabled: {{ .Values.observability.metrics.enabled }}
+      {{- if .Values.observability.metrics.serviceMonitor.enabled }}
+      serviceMonitor:
+        enabled: true
+        interval: {{ .Values.observability.metrics.serviceMonitor.interval | quote }}
+      {{- end }}
+    logging:
+      level: {{ .Values.observability.logging.level }}
+
+  # ---------- Availability ----------
+  availability:
+    {{- if not .Values.availability.autoScaling.enabled }}
+    replicas: {{ .Values.availability.replicas }}
+    {{- end }}
+    {{- if .Values.availability.podDisruptionBudget.enabled }}
+    podDisruptionBudget:
+      enabled: true
+      {{- if .Values.availability.podDisruptionBudget.minAvailable }}
+      minAvailable: {{ .Values.availability.podDisruptionBudget.minAvailable }}
+      {{- end }}
+      {{- if .Values.availability.podDisruptionBudget.maxUnavailable }}
+      maxUnavailable: {{ .Values.availability.podDisruptionBudget.maxUnavailable }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.availability.autoScaling.enabled }}
+    autoScaling:
+      enabled: true
+      minReplicas: {{ .Values.availability.autoScaling.minReplicas }}
+      maxReplicas: {{ .Values.availability.autoScaling.maxReplicas }}
+      targetCPUUtilizationPercentage: {{ .Values.availability.autoScaling.targetCPUUtilizationPercentage }}
+      {{- if .Values.availability.autoScaling.targetMemoryUtilizationPercentage }}
+      targetMemoryUtilizationPercentage: {{ .Values.availability.autoScaling.targetMemoryUtilizationPercentage }}
+      {{- end }}
+    {{- end }}
+    {{- with .Values.availability.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.availability.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.availability.affinity }}
+    affinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.availability.topologySpreadConstraints }}
+    topologySpreadConstraints:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+
+  # ---------- Probes ----------
+  probes:
+    type: {{ .Values.probes.type }}
+    {{- with .Values.probes.liveness }}
+    liveness:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.probes.readiness }}
+    readiness:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.probes.startup }}
+    startup:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+
+  # ---------- Backup ----------
+  {{- if .Values.backup.enabled }}
+  backup:
+    schedule: {{ .Values.backup.schedule | quote }}
+    {{- if .Values.backup.s3.bucket }}
+    s3:
+      bucket: {{ .Values.backup.s3.bucket | quote }}
+      {{- if .Values.backup.s3.path }}
+      path: {{ .Values.backup.s3.path | quote }}
+      {{- end }}
+      {{- if .Values.backup.s3.region }}
+      region: {{ .Values.backup.s3.region | quote }}
+      {{- end }}
+      {{- if .Values.backup.s3.endpoint }}
+      endpoint: {{ .Values.backup.s3.endpoint | quote }}
+      {{- end }}
+      {{- if .Values.backup.s3.credentialsSecretRef.name }}
+      credentialsSecretRef:
+        name: {{ .Values.backup.s3.credentialsSecretRef.name }}
+      {{- end }}
+    {{- end }}
+    retentionDays: {{ .Values.backup.retentionDays }}
+  {{- end }}
+
+  # ---------- Restore ----------
+  {{- if .Values.restoreFrom }}
+  restoreFrom: {{ .Values.restoreFrom | quote }}
+  {{- end }}
+
+  # ---------- Sidecars / Init Containers / Volumes ----------
+  {{- with .Values.sidecars }}
+  sidecars:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.initContainers }}
+  initContainers:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.extraVolumes }}
+  extraVolumes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.extraVolumeMounts }}
+  extraVolumeMounts:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # ---------- Pod Annotations ----------
+  {{- with .Values.podAnnotations }}
+  podAnnotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

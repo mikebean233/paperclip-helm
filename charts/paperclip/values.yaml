@@ -1,0 +1,366 @@
+# -- Override the release name
+nameOverride: ""
+# -- Override the full resource name
+fullnameOverride: ""
+
+# -- Paperclip Instance image configuration
+image:
+  repository: ghcr.io/paperclipinc/paperclip
+  tag: latest
+  # -- Image digest (overrides tag if set)
+  digest: ""
+  pullPolicy: IfNotPresent
+  # -- Image pull secrets
+  # Example:
+  #   pullSecrets:
+  #     - name: my-registry-secret
+  pullSecrets: []
+  # -- Automatic image update polling
+  autoUpdate:
+    enabled: false
+    # -- Polling interval (e.g. 5m, 1h). Minimum 1m.
+    interval: "5m"
+
+# -- Deployment mode and exposure
+deployment:
+  # -- Mode: open, authenticated, single-tenant
+  mode: authenticated
+  # -- Exposure: private or public
+  exposure: private
+  # -- External URL (required when exposure is public)
+  publicURL: ""
+  # -- CORS allowed hostnames
+  allowedHostnames: []
+
+# -- Database configuration
+# Defaults to a managed (internal) PostgreSQL instance
+database:
+  # -- Mode: embedded, external, managed
+  mode: managed
+  # -- PostgreSQL connection string (only for external mode, prefer secretRef)
+  externalURL: ""
+  # -- Secret reference for DATABASE_URL (external mode)
+  # Example:
+  #   externalURLSecretRef:
+  #     name: my-db-secret
+  #     key: DATABASE_URL
+  externalURLSecretRef: {}
+  # -- Managed PostgreSQL configuration (when mode=managed)
+  managed:
+    image: postgres:17-alpine
+    storageSize: 10Gi
+    # -- Storage class for PostgreSQL PVC (empty = cluster default)
+    storageClass: ""
+    # -- Resource requests/limits for managed PostgreSQL
+    resources: {}
+
+# -- Authentication configuration
+auth:
+  # -- Secret reference for BETTER_AUTH_SECRET (required for authenticated mode)
+  # Example:
+  #   secretRef:
+  #     name: my-auth-secret
+  #     key: BETTER_AUTH_SECRET
+  secretRef: {}
+  # -- Bootstrap an initial admin user
+  adminUser:
+    # -- Admin email (required if adminUser is configured)
+    email: ""
+    # -- Admin display name
+    name: Admin
+    # -- Secret reference containing admin password
+    # Example:
+    #   passwordSecretRef:
+    #     name: admin-password-secret
+    #     key: password
+    passwordSecretRef: {}
+  # -- Email verification configuration
+  email:
+    # -- Secret reference for Resend API key
+    resendAPIKeySecretRef: {}
+    # -- Sender address (e.g. "Paperclip <noreply@example.com>")
+    from: ""
+    # -- Require email verification before session creation
+    verificationRequired: false
+  # -- Google OAuth configuration
+  # google:
+  #   credentialsSecretRef:
+  #     name: google-oauth-secret  # must contain CLIENT_ID and CLIENT_SECRET keys
+  google: {}
+  # -- Apple OAuth configuration
+  # apple:
+  #   credentialsSecretRef:
+  #     name: apple-oauth-secret  # must contain CLIENT_ID and CLIENT_SECRET keys
+  apple: {}
+
+# -- Secrets / encryption configuration
+secrets:
+  # -- Secret reference for master encryption key
+  masterKeySecretRef: {}
+  # -- Require all sensitive values use encrypted refs
+  strictMode: false
+
+# -- Persistent storage for the Paperclip application
+storage:
+  persistence:
+    enabled: true
+    size: 5Gi
+    # -- Storage class (empty = cluster default)
+    storageClass: ""
+    # -- PVC access modes
+    accessModes: []
+
+# -- S3-compatible object storage configuration
+# Leave disabled (empty) to skip object storage
+objectStorage:
+  # -- Enable object storage
+  enabled: false
+  # -- Provider: s3, minio, r2
+  provider: s3
+  # -- Bucket name
+  bucket: ""
+  # -- S3 region
+  region: ""
+  # -- Endpoint URL (required for minio/r2)
+  endpoint: ""
+  # -- Secret with AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  # credentialsSecretRef:
+  #   name: s3-credentials
+  credentialsSecretRef: {}
+
+# -- Redis configuration
+# Defaults to a managed (internal) Redis instance
+redis:
+  # -- Enable Redis
+  enabled: true
+  # -- Mode: managed or external
+  mode: managed
+  # -- Redis connection string (only for external mode, prefer secretRef)
+  externalURL: ""
+  # -- Secret reference for Redis URL (external mode)
+  externalURLSecretRef: {}
+  # -- Managed Redis configuration (when mode=managed)
+  managed:
+    image: redis:7-alpine
+    storageSize: 1Gi
+    # -- Storage class for Redis PVC (empty = cluster default)
+    storageClass: ""
+    # -- Resource requests/limits for managed Redis
+    resources: {}
+
+# -- Heartbeat scheduler configuration
+heartbeat:
+  enabled: true
+  # -- Heartbeat interval in milliseconds
+  intervalMS: 60000
+
+# -- Adapters and AI provider configuration
+adapters:
+  # -- Secret containing API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
+  # apiKeysSecretRef:
+  #   name: ai-api-keys
+  apiKeysSecretRef: {}
+  # -- Managed inference provider (legacy single-key)
+  managedInferenceProvider: anthropic
+  # -- Default managed inference model
+  managedInferenceModel: claude-sonnet-4-6
+  # -- Secret with PAPERCLIP_MANAGED_*_API_KEY keys
+  managedInferenceSecretRef: {}
+  # -- Cloud sandbox configuration for isolated agent pods
+  cloudSandbox:
+    # -- Enable cloud sandbox (agents run in isolated pods)
+    enabled: true
+    # -- Default agent runtime image
+    defaultImage: ghcr.io/paperclipinc/agent-multi:latest
+    # -- Namespace for sandbox pods (defaults to instance namespace)
+    namespace: ""
+    # -- Idle timeout before reaping sandbox pods (minutes)
+    idleTimeoutMin: 30
+    # -- Default compute resources for sandbox pods
+    resources: {}
+    # -- PVC-backed workspace configuration
+    persistence:
+      enabled: false
+      storageClass: ""
+      size: 10Gi
+    # -- Per-company namespace isolation
+    multiNamespace: false
+    # -- Inference metering proxy sidecar
+    inferenceProxy:
+      enabled: false
+      image: ""
+      port: 8090
+    # -- Named resource tier presets
+    # Example:
+    #   resourceTiers:
+    #     small:
+    #       requests:
+    #         cpu: 250m
+    #         memory: 512Mi
+    #     large:
+    #       requests:
+    #         cpu: "2"
+    #         memory: 4Gi
+    resourceTiers: {}
+
+# -- External connections / OAuth credentials
+connections:
+  # -- Enable connections configuration
+  enabled: false
+  # -- Secret with OAuth credentials JSON
+  # credentialsSecretRef:
+  #   name: oauth-credentials
+  credentialsSecretRef: {}
+  # -- Key in the secret
+  credentialsKey: PAPERCLIP_OAUTH_CREDENTIALS
+  # -- ConfigMap with custom provider catalog
+  providersConfigRef: {}
+
+# -- Plugins to install
+# Example:
+#   plugins:
+#     - name: "@paperclip/plugin-slack"
+#       version: "1.0.0"
+plugins: []
+
+# -- Additional environment variables
+# Example:
+#   env:
+#     - name: MY_VAR
+#       value: "my-value"
+env: []
+
+# -- Additional environment variable sources
+# Example:
+#   envFrom:
+#     - secretRef:
+#         name: my-env-secret
+envFrom: []
+
+# -- Resource requests/limits for the main Paperclip container
+resources: {}
+
+# -- Security configuration
+security:
+  # -- Pod-level security context
+  podSecurityContext: {}
+  # -- Container-level security context
+  containerSecurityContext: {}
+  # -- Network policy configuration
+  networkPolicy:
+    enabled: true
+    # -- Additional ingress CIDRs
+    allowIngressCIDRs: []
+    # -- Additional egress CIDRs
+    allowEgressCIDRs: []
+  # -- RBAC / ServiceAccount configuration
+  rbac:
+    create: true
+    # -- ServiceAccount annotations (e.g. for IRSA, Workload Identity)
+    serviceAccountAnnotations: {}
+
+# -- Networking configuration
+networking:
+  service:
+    type: ClusterIP
+    port: 3100
+    # -- Service annotations
+    annotations: {}
+  # -- Ingress configuration
+  ingress:
+    enabled: false
+    # -- Ingress class name
+    ingressClassName: ""
+    # -- Ingress hostnames
+    hosts: []
+    # -- TLS configuration
+    # Example:
+    #   tls:
+    #     - hosts:
+    #         - paperclip.example.com
+    #       secretName: paperclip-tls
+    tls: []
+    # -- Ingress annotations
+    annotations: {}
+
+# -- Observability configuration
+observability:
+  metrics:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+      # -- Scrape interval
+      interval: "30s"
+  logging:
+    # -- Log level: debug, info, warn, error
+    level: info
+
+# -- Availability and scaling configuration
+availability:
+  # -- Number of replicas (ignored when autoScaling is enabled)
+  replicas: 1
+  # -- Pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: null
+    maxUnavailable: null
+  # -- Horizontal pod autoscaler
+  autoScaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: null
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Topology spread constraints
+  topologySpreadConstraints: []
+
+# -- Health probe configuration
+probes:
+  # -- Probe type: auto, http, tcp
+  type: auto
+  # -- Liveness probe overrides
+  liveness: {}
+  # -- Readiness probe overrides
+  readiness: {}
+  # -- Startup probe overrides
+  startup: {}
+
+# -- Backup configuration
+backup:
+  # -- Enable backups
+  enabled: false
+  # -- Cron schedule expression
+  schedule: ""
+  # -- S3 destination (falls back to objectStorage settings)
+  s3:
+    bucket: ""
+    path: ""
+    region: ""
+    endpoint: ""
+    credentialsSecretRef: {}
+  # -- Backup retention in days
+  retentionDays: 30
+
+# -- Restore from a remote backup path on first boot
+restoreFrom: ""
+
+# -- Additional sidecar containers
+sidecars: []
+
+# -- Additional init containers
+initContainers: []
+
+# -- Additional volumes
+extraVolumes: []
+
+# -- Additional volume mounts for the Paperclip container
+extraVolumeMounts: []
+
+# -- Additional pod annotations
+podAnnotations: {}

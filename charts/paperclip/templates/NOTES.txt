@@ -1,0 +1,53 @@
+Paperclip instance "{{ include "paperclip.fullname" . }}" has been deployed.
+
+{{- if eq .Values.deployment.exposure "public" }}
+
+Public URL: {{ .Values.deployment.publicURL }}
+{{- if .Values.networking.ingress.enabled }}
+Ingress is enabled. Ensure DNS points to your ingress controller.
+{{- end }}
+
+{{- else }}
+
+The instance is deployed in private mode.
+Access it within the cluster at:
+  http://{{ include "paperclip.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.networking.service.port }}
+
+To access locally via port-forward:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "paperclip.fullname" . }} {{ .Values.networking.service.port }}:{{ .Values.networking.service.port }}
+  Then open: http://localhost:{{ .Values.networking.service.port }}
+
+{{- end }}
+
+{{- if eq .Values.database.mode "managed" }}
+
+Database: Managed PostgreSQL ({{ .Values.database.managed.storageSize }} storage)
+{{- else if eq .Values.database.mode "external" }}
+Database: External (user-provided)
+{{- else }}
+Database: Embedded
+{{- end }}
+
+{{- if and .Values.redis.enabled (eq .Values.redis.mode "managed") }}
+Redis: Managed ({{ .Values.redis.managed.storageSize }} storage)
+{{- else if and .Values.redis.enabled (eq .Values.redis.mode "external") }}
+Redis: External (user-provided)
+{{- end }}
+
+{{- if .Values.adapters.cloudSandbox.enabled }}
+
+Cloud Sandbox: Enabled (agents run in isolated pods)
+  Default image: {{ .Values.adapters.cloudSandbox.defaultImage }}
+  Idle timeout: {{ .Values.adapters.cloudSandbox.idleTimeoutMin }} minutes
+{{- end }}
+
+Deployment mode: {{ .Values.deployment.mode }}
+
+{{- if eq .Values.deployment.mode "authenticated" }}
+{{- if .Values.auth.adminUser.email }}
+Admin user: {{ .Values.auth.adminUser.email }}
+{{- else }}
+
+NOTE: No admin user configured. Set auth.adminUser.email and auth.adminUser.passwordSecretRef to bootstrap an admin.
+{{- end }}
+{{- end }}

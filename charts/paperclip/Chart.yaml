@@ -1,0 +1,16 @@
+apiVersion: v2
+name: paperclip
+description: A Helm chart for deploying Paperclip AI agent orchestration instances via the paperclip-operator
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - paperclip
+  - ai
+  - agents
+  - orchestration
+home: https://github.com/paperclipinc/paperclip-operator
+sources:
+  - https://github.com/paperclipinc/paperclip-operator
+maintainers:
+  - name: paperclip
