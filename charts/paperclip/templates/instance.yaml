@@ -1,3 +1,4 @@
+{{- include "paperclip.validate" . -}}
 apiVersion: paperclip.inc/v1alpha1
 kind: Instance
 metadata:
